@@ -1,0 +1,241 @@
+@page "/flights"
+@using MauiApp1.Data
+@using System.Text;
+@using System.Diagnostics;
+
+<body>
+
+    <h3>Flight Finder</h3>
+    <div class="row">
+        <div>
+            <select @onchange="showOrigin">
+                    <option>Any</option>
+                    @foreach(var x in airports)
+                    {
+                        <option value="@x.cityCode">@x.cityCode</option>
+                    }
+            </select>
+        </div> 
+        <div>
+            <select @onchange="showdestination">
+                    <option >Any</option>
+                    @foreach(var y in airports)
+                    {
+                        <option value="@y.cityCode">@y.cityCode</option>
+                    }
+            </select> 
+        </div>
+        <div>
+            <select @onchange="showday">
+                @foreach(string z in dayList)
+                {
+                    <option value="@z">@z</option>
+                }
+            </select>
+        </div>
+        <div>
+            <button @onclick="FindFlights">Find flights</button>
+        </div>
+    </div>
+
+    <h3>Flights</h3>
+    <select class="meh" @onchange="ShowFlightDetails">
+        <option disabled selected>Loading</option>
+        @foreach(var a in matchingFlights)
+        {
+            <option>@a.FlightCode,@a.Airline, @a.Day, @a.Time, @a.Cost</option>
+        }
+    </select>
+
+    <h3>Reserve</h3>
+    <div class="column">
+
+        <label for="input2">Flight Code</label>
+        <input type="text" placeholder="Flight Code" @bind-value="@flightCode" readonly>
+        
+        <label for="input2">Airline</label>
+        <input type="text" placeholder="Airline" value="@airline" readonly>
+
+        <label for="input2">Day</label>
+        <input type="text" placeholder="Day" value="@day" readonly>
+
+        <label for="input2">Time</label>
+        <input type="text" placeholder="Time" value="@time" readonly>
+
+        <label for="input2">Cost</label>
+        <input type="text" placeholder="0" value="@cost" readonly>
+
+        <label for="input6">Name</label>
+        <input type="text" id="input" placeholder="Name" @bind=@name>
+
+        <label for="input7">Citizenship</label>
+        <input type="text" id="input" placeholder="Citizenship" @bind=@citizenship>
+    </div>
+
+    <div class="container">
+        <button @onclick="makeReservation" type="submit">Submit</button>
+        <span value="reserveCode">Reservation Code: @reserveCode</span>
+        <p>@errorMessage</p>
+    </div>
+</body>
+
+@code {
+    FlightManager fm = new FlightManager();
+    AirportManager am = new AirportManager();
+    List<FlightManager> flights = FlightManager.GetFlights();
+    List<AirportManager> airports = AirportManager.GetAirports();
+    List<Flight> matchingFlights = FlightManager.GetMatchingFlights();
+    List<ReservationManager> ReservationsList = ReservationManager.GetReservations();
+    List<string> dayList = new List<string> { "Any", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
+
+    string origin;
+    string destination;
+    string selectedday;
+    string day;
+    string cost;
+    string flightdetails;
+    string flightCode;
+    string airline;
+    string time;
+    string reserveCode;
+    string name;
+    string citizenship;
+    string errorMessage;
+
+    private void showOrigin(ChangeEventArgs x) => origin = x.Value.ToString();
+
+    private void showdestination(ChangeEventArgs y) => destination = y.Value.ToString();
+
+    private void showday(ChangeEventArgs z)
+    {
+        day = z.Value.ToString();
+    }
+
+    private void ShowFlightDetails(ChangeEventArgs fly)
+    {
+        flightdetails = fly.Value.ToString();
+        string[] fields = flightdetails.Split(','); 
+        foreach (string line in fields)
+        {
+            flightCode = fields[0];
+            airline = fields[1];
+            day = fields[2];
+            time = fields[3];
+            cost = fields[4];
+        }
+    }
+
+    private void FindFlights()
+    {
+        matchingFlights.Clear();
+        foreach (Flight a in flights)
+        {
+            if (origin == "Any" & destination == "Any" & selectedday == "Any")
+            {
+                matchingFlights.Add(a);
+            }
+            else if (origin == a.fromAirport & destination == a.toAirport & day == a.Day)
+            {
+                matchingFlights.Add(a);
+            }
+            else if (origin == a.fromAirport & destination == a.toAirport & day == "Any")
+            {
+                matchingFlights.Add(a);
+            }
+            else if (origin == a.fromAirport & destination == a.toAirport & selectedday == a.Day)
+            {
+                matchingFlights.Add(a);
+            }
+            else if (origin == "Any" & destination == a.toAirport & selectedday == "Any")
+            {
+                matchingFlights.Add(a);
+            }
+            else if (origin == a.fromAirport & destination == "Any" & selectedday == "Any")
+            {
+                matchingFlights.Add(a);
+            }
+        }
+    }
+
+    private void makeReservation()
+    {
+        string validatedName;
+        string validatedCitizenship;
+        string validatedFlight;
+
+        try
+        {
+            while (true)
+            {
+                if (!string.IsNullOrWhiteSpace(flightCode))
+                {
+                    validatedFlight = flightCode;
+                }
+                else
+                {
+                    throw new FlightDetailsLeftEmptyException("Must Select a Flight before submitting");
+                }
+
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    validatedName = name;
+                }
+                else
+                {
+                    throw new NameLeftEmptyException("Must not leave the name field empty");
+                }
+
+                if (!string.IsNullOrWhiteSpace(citizenship))
+                {
+                    validatedCitizenship = citizenship;
+                }
+                else
+                {
+                    throw new CitizenshipLeftEmptyException("Must not leave the citizenship field empty");
+                }
+
+                if (!string.IsNullOrWhiteSpace(flightCode) & !string.IsNullOrWhiteSpace(citizenship) & !string.IsNullOrWhiteSpace(name))
+                {
+                    errorMessage = null;
+                    reserveCode = ReservationManager.GenerateRandomReservationCode();
+                    ReservationsList.Add(new ReservationManager(reserveCode, validatedFlight, airline, cost, validatedName, validatedCitizenship, "Active"));
+                    ReservationManager.WriteReservationsToXmlFile();
+                    DecrementNumberOfSeatsWhenReserved();
+                    break;
+                }
+            }
+        }
+        catch (NameLeftEmptyException n)
+        {
+            errorMessage = n.Message;
+        }
+        catch(FlightDetailsLeftEmptyException f)
+        {
+            errorMessage = f.Message;
+        }
+        catch(CitizenshipLeftEmptyException c)
+        {
+            errorMessage = c.Message;
+        }
+        catch(FlightIsFullException full)
+        {
+            errorMessage = full.Message;
+        }
+
+    }
+
+    public void DecrementNumberOfSeatsWhenReserved()
+    {
+        foreach(Flight f in flights)
+        {
+            if (f.FlightCode == flightCode)
+            {
+                int newCount = f.Count - 1;
+                f.Count = newCount;
+            }
+        }
+        FlightManager.WriteFlightsIntoFile();
+    }
+
+}
+
